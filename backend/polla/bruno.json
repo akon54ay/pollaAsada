@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "polla",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
