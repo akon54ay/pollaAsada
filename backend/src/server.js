@@ -147,13 +147,27 @@ const startServer = async () => {
     // Inicializar base de datos
     await initializeDatabase();
     
-    // Iniciar servidor Express
-    app.listen(PORT, () => {
+    // Iniciar servidor Express en todas las interfaces
+    app.listen(PORT, '0.0.0.0', () => {
+      const os = require('os');
+      const networkInterfaces = os.networkInterfaces();
+      const addresses = [];
+      
+      // Obtener todas las IPs disponibles
+      for (const name of Object.keys(networkInterfaces)) {
+        for (const net of networkInterfaces[name]) {
+          if (net.family === 'IPv4' && !net.internal) {
+            addresses.push(net.address);
+          }
+        }
+      }
+      
       console.log(`
 ========================================
 🚀 Servidor iniciado exitosamente
 ========================================
-📍 URL: http://localhost:${PORT}
+📍 Local: http://localhost:${PORT}
+📍 Red: ${addresses.map(addr => `http://${addr}:${PORT}`).join('\n📍 Red: ')}
 📍 API Health: http://localhost:${PORT}/health
 📍 Entorno: ${process.env.NODE_ENV}
 📍 Base de datos: ${process.env.DB_NAME}@${process.env.DB_HOST}

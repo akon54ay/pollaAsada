@@ -9,25 +9,52 @@ dotenv.config();
 // Crear aplicación Express
 const app = express();
 
-// Configuración de CORS
+// Obtener origins permitidos del .env
+const allowedOrigins = process.env.ALLOWED_ORIGINS || '*';
+
+// Lista de orígenes permitidos
+const allowedOriginsList = [
+  "http://localhost:3000", // React development server
+  "http://localhost:5173", // Vite development server
+  "http://localhost:5174", // Vite development server (puerto alternativo)
+  "http://localhost:5175", // Vite development server (puerto alternativo 2)
+  "http://172.80.15.84:3000",
+  "http://172.80.15.84:5173",
+  "http://172.80.15.84:5174",
+  "http://172.80.15.84:5175",
+  "http://172.80.15.84:8080", // Backend server
+  "http://172.80.15.37:5173", // Cliente remoto
+  "http://172.80.15.37:5174", // Cliente remoto (puerto alternativo)
+  "http://172.80.15.37:5175", // Cliente remoto (puerto alternativo 2)
+  "http://192.168.56.1:5173", // Cliente remoto (corrección de IP)
+  "http://192.168.56.1:5174", // Cliente remoto (puerto alternativo)
+  "http://192.168.56.1:5175", // Cliente remoto (puerto alternativo 2)
+];
+
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS;
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (como Postman o aplicaciones móviles)
+    if (!origin) {
+      return callback(null, true);
+    }
     
-    // Permitir requests sin origin (ej: Postman, aplicaciones móviles)
-    if (!origin) return callback(null, true);
-    
-    // Si ALLOWED_ORIGINS es *, permitir todos
+    // Si ALLOWED_ORIGINS del .env es *, permitir todos
     if (allowedOrigins === '*') {
       return callback(null, true);
     }
     
     // Verificar si el origin está en la lista de permitidos
-    const origins = allowedOrigins.split(',').map(o => o.trim());
-    if (origins.indexOf(origin) !== -1) {
+    if (allowedOriginsList.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('No permitido por CORS'));
+      // También verificar los origins del .env si existen
+      const envOrigins = allowedOrigins.split(',').map(o => o.trim());
+      if (envOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log('CORS bloqueado para:', origin);
+        callback(new Error('No permitido por CORS'));
+      }
     }
   },
   credentials: true,

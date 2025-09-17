@@ -1,7 +1,22 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:8080/api';
+// Detectar si estamos en desarrollo local o en red
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  
+  // Si es localhost o 127.0.0.1, usar localhost
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8080/api';
+  }
+  
+  // Si es una IP, usar la misma IP pero con puerto 8080
+  return `http://${hostname}:8080/api`;
+};
+
+const API_URL = getApiUrl();
+
+console.log('API URL configurada:', API_URL);
 
 // Crear instancia de axios
 const api = axios.create({
