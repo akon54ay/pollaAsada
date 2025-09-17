@@ -46,14 +46,16 @@ const Pago = sequelize.define('Pago', {
 }, {
   timestamps: true,
   hooks: {
-    beforeCreate: async (pago) => {
-      // Generar número de ticket único
-      const fecha = new Date();
-      const year = fecha.getFullYear().toString().substr(-2);
-      const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
-      const day = fecha.getDate().toString().padStart(2, '0');
-      const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-      pago.numero_ticket = `T${year}${month}${day}-${random}`;
+    beforeValidate: async (pago) => {
+      // Generar número de ticket único si no existe
+      if (!pago.numero_ticket) {
+        const fecha = new Date();
+        const year = fecha.getFullYear().toString().substr(-2);
+        const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
+        const day = fecha.getDate().toString().padStart(2, '0');
+        const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+        pago.numero_ticket = `T${year}${month}${day}-${random}`;
+      }
       
       // Calcular cambio si es efectivo
       if (pago.metodo_pago === 'efectivo' && pago.monto_recibido) {

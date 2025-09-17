@@ -63,14 +63,16 @@ const Pedido = sequelize.define('Pedido', {
 }, {
   timestamps: true,
   hooks: {
-    beforeCreate: async (pedido) => {
-      // Generar número de pedido único
-      const fecha = new Date();
-      const year = fecha.getFullYear().toString().substr(-2);
-      const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
-      const day = fecha.getDate().toString().padStart(2, '0');
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      pedido.numero_pedido = `P${year}${month}${day}-${random}`;
+    beforeValidate: async (pedido) => {
+      // Generar número de pedido único si no existe
+      if (!pedido.numero_pedido) {
+        const fecha = new Date();
+        const year = fecha.getFullYear().toString().substr(-2);
+        const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
+        const day = fecha.getDate().toString().padStart(2, '0');
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        pedido.numero_pedido = `P${year}${month}${day}-${random}`;
+      }
     }
   }
 });
