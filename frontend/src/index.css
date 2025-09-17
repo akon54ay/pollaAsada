@@ -29,3 +29,165 @@
     @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
 }
+
+/* Animaciones personalizadas con GSAP y CSS */
+@layer utilities {
+  /* Animación de entrada suave */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Animación de deslizamiento */
+  .animate-slide-in {
+    animation: slideIn 0.5s ease-out forwards;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  /* Animación de escala */
+  .animate-scale-in {
+    animation: scaleIn 0.5s ease-out forwards;
+  }
+  
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  /* Animación de rotación */
+  .animate-rotate-in {
+    animation: rotateIn 0.6s ease-out forwards;
+  }
+  
+  @keyframes rotateIn {
+    from {
+      transform: rotate(-180deg) scale(0.5);
+      opacity: 0;
+    }
+    to {
+      transform: rotate(0deg) scale(1);
+      opacity: 1;
+    }
+  }
+  
+  /* Efecto de brillo */
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  /* Efecto de pulso mejorado */
+  .animate-pulse-soft {
+    animation: pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulseSoft {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.05);
+    }
+  }
+  
+  /* Efecto de flotación */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  /* Efecto de onda */
+  .animate-wave {
+    animation: wave 1s ease-in-out infinite;
+  }
+  
+  @keyframes wave {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+  
+  /* Gradientes animados */
+  .gradient-animate {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+  }
+  
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  /* Efecto de neón */
+  .neon-glow {
+    text-shadow: 0 0 10px #ff6b6b, 0 0 20px #ff6b6b, 0 0 30px #ff6b6b;
+    animation: neonFlicker 1.5s infinite alternate;
+  }
+  
+  @keyframes neonFlicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Transiciones suaves para scroll */
+  * {
+    scroll-behavior: smooth;
+  }
+  
+  /* Scrollbar personalizado */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gradient-to-b from-orange-400 to-red-500 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gradient-to-b from-orange-500 to-red-600;
+  }
+}

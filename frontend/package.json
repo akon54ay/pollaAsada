@@ -18,7 +18,10 @@
     "react-hot-toast": "^2.4.1",
     "lucide-react": "^0.294.0",
     "date-fns": "^2.30.0",
-    "clsx": "^2.0.0"
+    "clsx": "^2.0.0",
+    "@studio-freight/lenis": "^1.0.29",
+    "gsap": "^3.12.4",
+    "framer-motion": "^10.16.16"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
