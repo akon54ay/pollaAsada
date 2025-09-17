@@ -5,9 +5,20 @@ meta {
 }
 
 get {
-  url: 
-  body: none
+  url: {{api}}/auth/login
+  body: json
   auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "caja",
+    "password": "caja123"
+  }
 }
 
 settings {

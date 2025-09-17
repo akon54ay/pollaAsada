@@ -97,6 +97,7 @@ const Caja = () => {
         monto_recibido: metodoPago === 'efectivo' ? parseFloat(montoRecibido) : undefined
       };
 
+      console.log('Enviando pedido:', pedidoData);
       const response = await cajaService.crearPedidoConPago(pedidoData);
       
       toast.success('Pedido procesado exitosamente');
@@ -107,7 +108,8 @@ const Caja = () => {
       fetchResumenCaja();
     } catch (error) {
       console.error('Error al procesar pedido:', error);
-      toast.error('Error al procesar el pedido');
+      const errorMessage = error.response?.data?.message || 'Error al procesar el pedido';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
