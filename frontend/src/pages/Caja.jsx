@@ -20,11 +20,20 @@ import { es } from 'date-fns/locale';
 const Caja = () => {
   const [activeTab, setActiveTab] = useState('nuevo');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [pedidosRecientes, setPedidosRecientes] = useState([]);
   const [resumenCaja, setResumenCaja] = useState(null);
   const [ticketModal, setTicketModal] = useState(null);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   const [montoRecibido, setMontoRecibido] = useState('');
+
+  // Manejador de errores
+  const handleError = (error) => {
+    console.error('Error en Caja:', error);
+    setError(error.message || 'Ha ocurrido un error');
+    toast.error(error.message || 'Ha ocurrido un error');
+    setLoading(false);
+  };
   
   const {
     items: cartItems,
@@ -39,22 +48,74 @@ const Caja = () => {
   } = useCartStore();
 
   useEffect(() => {
-    fetchPedidosRecientes();
-    fetchResumenCaja();
-    // Actualizar cada 30 segundos
-    const interval = setInterval(() => {
-      fetchPedidosRecientes();
-      fetchResumenCaja();
-    }, 30000);
-    return () => clearInterval(interval);
+    const fetchData = async () => {
+      await fetchPedidosRecientes();
+      await fetchResumenCaja();
+    };
+
+    // Cargar datos iniciales
+    fetchData();
+    
+    // Actualizar cada 5 segundos para mantener los pedidos actualizados
+    const interval = setInterval(fetchData, 5000);
+    
+    // Eventos para actualizar datos
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchData();
+      }
+    };
+    
+    const handleFocus = () => {
+      fetchData();
+    };
+
+    // Custom event para actualización manual
+    const handlePedidoCreado = () => {
+      fetchData();
+    };
+    
+    // Agregar event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pedidoCreado', handlePedidoCreado);
+    
+    // Limpiar
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pedidoCreado', handlePedidoCreado);
+    };
   }, []);
 
   const fetchPedidosRecientes = async () => {
     try {
-      const response = await pedidoService.getPedidos({ estado: 'pendiente' });
-      setPedidosRecientes(response.data.slice(0, 10)); // Últimos 10 pedidos
+      console.log('Consultando pedidos pendientes...');
+      const response = await pedidoService.getPedidos({ 
+        estado: ['pendiente', 'nuevo'],
+        limit: 20,
+        sort: '-createdAt'
+      });
+      
+      if (response && response.data) {
+        console.log('Pedidos recibidos:', response.data);
+        const pedidosFormateados = response.data
+          .filter(pedido => pedido && pedido.items && pedido.items.length > 0)
+          .map(pedido => ({
+            ...pedido,
+            total: parseFloat(pedido.total || 0),
+            createdAt: new Date(pedido.createdAt || new Date()),
+            numero_pedido: pedido.numero_pedido || Date.now().toString().slice(-6)
+          }))
+          .sort((a, b) => b.createdAt - a.createdAt);
+
+        console.log('Pedidos formateados:', pedidosFormateados);
+        setPedidosRecientes(pedidosFormateados);
+      }
     } catch (error) {
       console.error('Error al cargar pedidos:', error);
+      toast.error('Error al cargar los pedidos recientes');
     }
   };
 
@@ -68,69 +129,144 @@ const Caja = () => {
   };
 
   const handleProcesarPedido = async () => {
-    // Validaciones
-    if (cartItems.length === 0) {
-      toast.error('El carrito está vacío');
-      return;
-    }
-
-    if (tipoPedido === 'local' && !mesa) {
-      toast.error('Por favor indica el número de mesa');
-      return;
-    }
-
-    if (metodoPago === 'efectivo' && !montoRecibido) {
-      toast.error('Por favor indica el monto recibido');
-      return;
-    }
-
-    if (metodoPago === 'efectivo' && parseFloat(montoRecibido) < getTotal()) {
-      toast.error('El monto recibido es insuficiente');
-      return;
-    }
-
-    setLoading(true);
     try {
+      // Validaciones iniciales
+      if (!cartItems || cartItems.length === 0) {
+        toast.error('El carrito está vacío');
+        return;
+      }
+
+      if (!cartItems.every(item => item && item.menu_id && item.cantidad > 0)) {
+        toast.error('Hay productos inválidos en el carrito');
+        return;
+      }
+
+      if (tipoPedido === 'local' && !mesa) {
+        toast.error('Por favor indica el número de mesa');
+        return;
+      }
+
+      if (metodoPago === 'efectivo' && !montoRecibido) {
+        toast.error('Por favor indica el monto recibido');
+        return;
+      }
+
+      const total = getTotal();
+      if (!total || total <= 0) {
+        toast.error('El total del pedido es inválido');
+        return;
+      }
+
+      if (metodoPago === 'efectivo' && parseFloat(montoRecibido) < total) {
+        toast.error('El monto recibido es insuficiente');
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      // Construir el objeto de pedido
       const pedidoData = {
-        ...getPedidoData(),
+        mesa,
+        cliente_nombre: clienteNombre,
+        tipo_pedido: tipoPedido,
+        observaciones,
         metodo_pago: metodoPago,
-        monto_recibido: metodoPago === 'efectivo' ? parseFloat(montoRecibido) : undefined
+        monto_recibido: metodoPago === 'efectivo' ? parseFloat(montoRecibido) : undefined,
+        total,
+        items: cartItems.map(item => ({
+          menu_id: item.menu_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio,
+          observaciones: item.observaciones || ''
+        }))
       };
 
+      // Enviar el pedido al servidor
       const response = await cajaService.crearPedidoConPago(pedidoData);
       
-      toast.success('Pedido procesado exitosamente');
-      setTicketModal(response.data);
-      clearCart();
-      setMontoRecibido('');
-      fetchPedidosRecientes();
-      fetchResumenCaja();
+      // Procesar respuesta exitosa
+      if (response && response.data) {
+        toast.success('¡Pedido procesado exitosamente!');
+        setTicketModal(response.data);
+        
+        // Limpiar el carrito y resetear el estado
+        clearCart();
+        setMontoRecibido('');
+        setMetodoPago('efectivo');
+        
+        // Actualizar datos en segundo plano
+        await Promise.all([
+          fetchPedidosRecientes(),
+          fetchResumenCaja()
+        ]);
+      } else {
+        throw new Error('Respuesta inválida del servidor');
+      }
     } catch (error) {
-      console.error('Error al procesar pedido:', error);
-      toast.error('Error al procesar el pedido');
+      handleError(error);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePrintTicket = () => {
-    if (ticketModal?.ticket) {
+    if (!ticketModal?.ticket) {
+      toast.error('No hay ticket para imprimir');
+      return;
+    }
+    
+    try {
       const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('Por favor habilita las ventanas emergentes para imprimir el ticket');
+        return;
+      }
+
       printWindow.document.write(`
         <html>
           <head>
             <title>Ticket ${ticketModal.pago.numero_ticket}</title>
             <style>
-              body { font-family: monospace; padding: 20px; }
-              pre { white-space: pre-wrap; }
+              body { 
+                font-family: monospace; 
+                padding: 20px; 
+                margin: 0;
+                width: 80mm; /* Ancho estándar para tickets POS */
+              }
+              pre { 
+                white-space: pre-wrap;
+                margin: 0;
+                font-size: 12px;
+                line-height: 1.2;
+              }
+              @media print {
+                body { 
+                  width: 100%;
+                }
+                pre {
+                  white-space: pre-wrap;
+                  word-break: break-word;
+                }
+              }
             </style>
           </head>
           <body>
             <pre>${ticketModal.ticket}</pre>
-            <script>window.print(); window.close();</script>
+            <script>
+              try {
+                window.print();
+                setTimeout(() => window.close(), 500);
+              } catch(e) {
+                console.error('Error al imprimir:', e);
+              }
+            </script>
           </body>
         </html>
       `);
+    } catch (error) {
+      console.error('Error al abrir ventana de impresión:', error);
+      toast.error('Error al intentar imprimir el ticket');
     }
   };
 
@@ -154,6 +290,24 @@ const Caja = () => {
       'transferencia': '🏦'
     };
     return icons[metodo] || '💰';
+  };
+
+  const buildPedidoData = () => {
+    return {
+      mesa: mesa,
+      cliente_nombre: clienteNombre,
+      tipo_pedido: tipoPedido,
+      observaciones: observaciones,
+      metodo_pago: metodoPago,
+      monto_recibido: metodoPago === 'efectivo' ? parseFloat(montoRecibido) : undefined,
+      total: getTotal(),
+      items: cartItems.map(item => ({
+        menu_id: item.menu_id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio,
+        observaciones: item.observaciones
+      }))
+    };
   };
 
   return (

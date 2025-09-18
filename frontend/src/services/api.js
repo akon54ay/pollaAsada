@@ -1,7 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 // Crear instancia de axios
 const api = axios.create({
@@ -65,6 +65,11 @@ export const authService = {
     window.location.href = '/login';
   },
   
+  validateToken: async () => {
+    const response = await api.get('/auth/validate');
+    return response.data;
+  },
+
   getProfile: async () => {
     const response = await api.get('/auth/profile');
     return response.data;
@@ -125,8 +130,19 @@ export const pedidoService = {
   },
   
   createPedido: async (data) => {
-    const response = await api.post('/pedidos', data);
-    return response.data;
+    try {
+      console.log('Enviando pedido:', data);
+      const response = await api.post('/pedidos', {
+        ...data,
+        fecha: new Date().toISOString(),
+        numero_pedido: Date.now().toString().slice(-6) // Generar número de pedido único
+      });
+      console.log('Respuesta del servidor:', response.data);
+      return response;
+    } catch (error) {
+      console.error('Error al crear pedido:', error.response?.data || error);
+      throw error;
+    }
   },
   
   updateEstado: async (id, estado, observacion = '') => {
@@ -151,8 +167,41 @@ export const cajaService = {
   },
   
   crearPedidoConPago: async (data) => {
-    const response = await api.post('/caja/pedido-con-pago', data);
-    return response.data;
+    try {
+      if (!data.items || data.items.length === 0) {
+        throw new Error('El pedido debe tener al menos un producto');
+      }
+
+      console.log('Enviando datos al servidor:', data);
+      const response = await api.post('/caja/pedido-con-pago', {
+        mesa: data.mesa || '',
+        cliente_nombre: data.cliente_nombre || 'Sin nombre',
+        tipo_pedido: data.tipo_pedido || 'local',
+        items: data.items.map(item => ({
+          menu_id: item.menu_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio,
+          nombre: item.nombre,
+          observaciones: item.observaciones || ''
+        })),
+        metodo_pago: data.metodo_pago || 'efectivo',
+        monto_recibido: data.monto_recibido || data.total,
+        total: data.total,
+        estado: 'pendiente',
+        observaciones: data.observaciones || '',
+        fecha: new Date().toISOString()
+      });
+      
+      if (response.data && response.data.success) {
+        toast.success('¡Pedido creado exitosamente!');
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error detallado:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Error al procesar el pedido');
+      throw error;
+    }
   },
   
   getTicket: async (numeroTicket) => {

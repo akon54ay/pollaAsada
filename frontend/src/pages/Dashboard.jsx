@@ -388,7 +388,7 @@ const Dashboard = () => {
       </div>
 
       {/* Estilos para animaciones */}
-      <style jsx>{`
+      <style>{`
         @keyframes growUp {
           from {
             height: 0;

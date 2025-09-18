@@ -18,15 +18,34 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Verificar si hay un usuario guardado en localStorage
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const checkAuth = async () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        
+        if (storedUser && token) {
+          const user = JSON.parse(storedUser);
+          setUser(user);
+          setIsAuthenticated(true);
+          // Verificar token con el backend
+          try {
+            await authService.validateToken();
+          } catch (error) {
+            // Si el token no es válido, limpiar todo
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    checkAuth();
   }, []);
 
   const login = async (username, password) => {

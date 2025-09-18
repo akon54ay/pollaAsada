@@ -1,9 +1,9 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const PrivateRoute = ({ children, allowedRoles = [] }) => {
-  const { isAuthenticated, loading, canAccess } = useAuth();
+const PrivateRoute = () => {
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
@@ -17,16 +17,7 @@ const PrivateRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles.length > 0 && !canAccess(allowedRoles)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600">No tienes permisos para acceder a esta página.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return children;
+  return <Outlet />;
 };
+
+export default PrivateRoute;

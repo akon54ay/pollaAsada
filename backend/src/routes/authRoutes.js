@@ -45,5 +45,8 @@ router.post('/login', validateLogin, authController.login);
 // Rutas protegidas
 router.get('/profile', verifyToken, authController.getProfile);
 router.post('/change-password', verifyToken, validateChangePassword, authController.changePassword);
+router.get('/validate', verifyToken, (req, res) => {
+  res.json({ success: true, message: 'Token válido' });
+});
 
 module.exports = router;

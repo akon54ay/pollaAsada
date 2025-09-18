@@ -24,7 +24,12 @@ const MenuAnimated = () => {
     updateQuantity,
     getTotal,
     getTotalItems,
-    clearCart 
+    clearCart,
+    mesa,
+    clienteNombre,
+    tipoPedido,
+    observaciones,
+    updateOrderData
   } = useCartStore();
 
   const { scrollTo } = useLenis();
@@ -475,7 +480,14 @@ const MenuAnimated = () => {
                         key={item.menu_id}
                         className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300"
                         style={{
-                          animation: `slideIn 0.3s ease-out ${index * 0.05}s both`
+                          animation: `slideIn 0.3s ease-out ${index * 0.05}s both`,
+                          transform: 'translateX(0)',
+                          opacity: 1
+                        }}
+                        ref={el => {
+                          if (el) {
+                            el.style.setProperty('--exit-delay', `${(cartItems.length - index - 1) * 0.05}s`);
+                          }
                         }}
                       >
                         <div className="flex justify-between items-start mb-3">
@@ -539,13 +551,95 @@ const MenuAnimated = () => {
                   </button>
                   
                   <button
-                    onClick={() => {
-                      handleCartToggle();
-                      toast.info('Ve a la sección de Caja para procesar el pedido');
+                    onClick={async (e) => {
+                      try {
+                        if (!cartItems || cartItems.length === 0) {
+                          toast.error('El carrito está vacío');
+                          return;
+                        }
+
+                        // Preparar datos del pedido
+                        const pedidoData = {
+                          estado: 'pendiente',
+                          items: cartItems.map(item => ({
+                            menu_id: item.menu_id,
+                            cantidad: item.cantidad,
+                            precio_unitario: item.precio,
+                            nombre: item.nombre
+                          })),
+                          total: getTotal(),
+                          estado: 'pendiente'
+                        };
+
+                        console.log('Enviando pedido:', pedidoData);
+
+                        // Enviar pedido a caja
+                        const response = await pedidoService.createPedido(pedidoData);
+
+                        if (response.data) {
+                          // Disparar evento personalizado para actualizar caja
+                          const event = new CustomEvent('pedidoCreado', {
+                            detail: response.data
+                          });
+                          window.dispatchEvent(event);
+
+                          // Cambiar estilo del botón a verde y mostrar animación
+                          const button = e.currentTarget;
+                          button.classList.remove('from-orange-500', 'to-red-600');
+                          button.classList.add('from-green-500', 'to-green-600');
+                          
+                          // Crear el span para el check
+                          const checkSpan = document.createElement('span');
+                          checkSpan.className = 'ml-2';
+                          checkSpan.textContent = '✓';
+                          
+                          // Actualizar el contenido del botón
+                          button.textContent = '¡Pedido Enviado!';
+                          button.appendChild(checkSpan);
+                          
+                          // Animación de éxito
+                          gsap.to(button, {
+                            scale: 1.05,
+                            duration: 0.2,
+                            yoyo: true,
+                            repeat: 1,
+                            ease: 'power2.inOut',
+                            onComplete: () => {
+                              setTimeout(() => {
+                                // Limpiar carrito y datos
+                                clearCart();
+                                updateOrderData({
+                                  mesa: '',
+                                  clienteNombre: '',
+                                  tipoPedido: 'local',
+                                  observaciones: ''
+                                });
+                                
+                                // Cerrar panel y mostrar mensaje
+                                handleCartToggle();
+                                toast.success('¡Pedido enviado a caja exitosamente!', {
+                                  icon: '✅',
+                                  duration: 3000,
+                                });
+                              }, 500);
+                            }
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error al enviar pedido:', error);
+                        const errorMessage = error.response?.data?.message || 'Error al enviar el pedido';
+                        toast.error(`${errorMessage}. Por favor intenta nuevamente.`);
+                        
+                        // Restaurar el botón si hay error
+                        const button = e.currentTarget;
+                        button.classList.remove('from-green-500', 'to-green-600');
+                        button.classList.add('from-orange-500', 'to-red-600');
+                        button.textContent = 'Procesar Pedido';
+                      }
                     }}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                    className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
                   >
-                    Procesar Pedido
+                    <span>Procesar Pedido</span>
                   </button>
                 </div>
               )}
@@ -555,7 +649,7 @@ const MenuAnimated = () => {
       )}
 
       {/* Estilos CSS para animaciones */}
-      <style jsx>{`
+      <style>{`
         @keyframes slideIn {
           from {
             opacity: 0;
@@ -567,11 +661,31 @@ const MenuAnimated = () => {
           }
         }
         
+        @keyframes slideOut {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(-30px);
+          }
+        }
+        
+        .cart-item-exit {
+          animation: slideOut 0.3s ease-in forwards;
+          animation-delay: var(--exit-delay, 0s);
+        }
+        
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+
+        .success-button {
+          background: linear-gradient(to right, #22c55e, #16a34a);
         }
       `}</style>
     </div>
