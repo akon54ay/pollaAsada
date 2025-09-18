@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { mozoService } from '../services/api';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { 
   Users, 
   CheckCircle, 
@@ -9,7 +10,8 @@ import {
   RefreshCw,
   TrendingUp,
   Coffee,
-  AlertCircle
+  AlertCircle,
+  Bell
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -25,13 +27,19 @@ const Mozo = () => {
   const [procesando, setProcesando] = useState(null);
   const [selectedMesa, setSelectedMesa] = useState(null);
   const [pedidosMesa, setPedidosMesa] = useState([]);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastPedidosListosCount, setLastPedidosListosCount] = useState(0);
 
   useEffect(() => {
     fetchData();
-    // Actualizar cada 20 segundos
-    const interval = setInterval(fetchData, 20000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Auto-actualización cada 10 segundos
+  useAutoRefresh(() => {
+    if (autoRefresh) {
+      fetchData();
+    }
+  }, 10000, [activeTab]);
 
   const fetchData = async () => {
     try {
@@ -41,13 +49,27 @@ const Mozo = () => {
         mozoService.getEstadisticas()
       ]);
       
-      setPedidosListos(pedidosRes.data);
+      // Verificar si hay nuevos pedidos listos
+      const nuevosPedidosListos = pedidosRes.data || [];
+      if (nuevosPedidosListos.length > lastPedidosListosCount) {
+        const diff = nuevosPedidosListos.length - lastPedidosListosCount;
+        toast.success(
+          `🔔 ${diff} pedido${diff > 1 ? 's' : ''} listo${diff > 1 ? 's' : ''} para entregar`,
+          { duration: 5000, icon: '🍽️' }
+        );
+        // Reproducir sonido de notificación
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(() => {});
+      }
+      setLastPedidosListosCount(nuevosPedidosListos.length);
+      
+      setPedidosListos(nuevosPedidosListos);
       setMesasActivas(mesasRes.data);
       setEstadisticas(statsRes.data);
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
-      setLoading(false);
+      if (loading) setLoading(false);
     }
   };
 
@@ -114,13 +136,27 @@ const Mozo = () => {
             <h1 className="text-3xl font-bold text-gray-900">Panel del Mozo</h1>
             <p className="text-gray-600 mt-1">Gestión de entregas y mesas</p>
           </div>
-          <button
-            onClick={fetchData}
-            className="btn-outline flex items-center space-x-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>Actualizar</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                autoRefresh 
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title={autoRefresh ? 'Auto-actualización activa' : 'Auto-actualización pausada'}
+            >
+              <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin-slow' : ''}`} />
+              <span className="text-sm">{autoRefresh ? 'Auto 10s' : 'Manual'}</span>
+            </button>
+            <button
+              onClick={fetchData}
+              className="btn-outline flex items-center space-x-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Actualizar Ahora</span>
+            </button>
+          </div>
         </div>
 
         {/* Estadísticas */}

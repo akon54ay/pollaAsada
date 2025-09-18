@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { cocinaService } from '../services/api';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { 
   ChefHat, 
   Clock, 
@@ -8,7 +9,8 @@ import {
   RefreshCw,
   Timer,
   TrendingUp,
-  Package
+  Package,
+  Bell
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -21,13 +23,19 @@ const Cocina = () => {
   const [productosMasPedidos, setProductosMasPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastPedidosCount, setLastPedidosCount] = useState(0);
 
   useEffect(() => {
     fetchData();
-    // Actualizar cada 15 segundos
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Auto-actualización cada 10 segundos
+  useAutoRefresh(() => {
+    if (autoRefresh) {
+      fetchData();
+    }
+  }, 10000, []);
 
   const fetchData = async () => {
     try {
@@ -37,13 +45,27 @@ const Cocina = () => {
         cocinaService.getProductosMasPedidos()
       ]);
       
-      setPedidos(pedidosRes.data);
+      // Verificar si hay nuevos pedidos
+      const nuevosPedidos = pedidosRes.data || [];
+      if (nuevosPedidos.length > lastPedidosCount) {
+        const diff = nuevosPedidos.length - lastPedidosCount;
+        toast.success(
+          `🔔 ${diff} nuevo${diff > 1 ? 's' : ''} pedido${diff > 1 ? 's' : ''} en cocina`,
+          { duration: 5000 }
+        );
+        // Reproducir sonido de notificación
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(() => {});
+      }
+      setLastPedidosCount(nuevosPedidos.length);
+      
+      setPedidos(nuevosPedidos);
       setEstadisticas(statsRes.data);
       setProductosMasPedidos(productosRes.data);
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
-      setLoading(false);
+      if (loading) setLoading(false);
     }
   };
 
@@ -102,13 +124,27 @@ const Cocina = () => {
             <h1 className="text-3xl font-bold text-gray-900">Cocina</h1>
             <p className="text-gray-600 mt-1">Panel de comandas y preparación</p>
           </div>
-          <button
-            onClick={fetchData}
-            className="btn-outline flex items-center space-x-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>Actualizar</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                autoRefresh 
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title={autoRefresh ? 'Auto-actualización activa' : 'Auto-actualización pausada'}
+            >
+              <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin-slow' : ''}`} />
+              <span className="text-sm">{autoRefresh ? 'Auto 10s' : 'Manual'}</span>
+            </button>
+            <button
+              onClick={fetchData}
+              className="btn-outline flex items-center space-x-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Actualizar Ahora</span>
+            </button>
+          </div>
         </div>
 
         {/* Estadísticas */}

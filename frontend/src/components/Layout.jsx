@@ -75,6 +75,62 @@ const Layout = ({ children }) => {
     return labels[role] || role;
   };
 
+  // Vista simplificada para clientes (solo en el menú)
+  const isClientMode = localStorage.getItem('clientMode') === 'true';
+  const isClientView = location.pathname === '/' && (isClientMode || !user || user.role === 'cliente');
+
+  if (isClientView) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+        {/* Header simplificado para clientes */}
+        <header className="bg-white shadow-lg border-b-2 border-orange-200">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-20">
+              <div className="flex items-center space-x-4">
+                <div className="text-3xl">🍗</div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Pollería El Sabor
+                  </h1>
+                  <p className="text-sm text-gray-600">¡Ordena ahora y disfruta!</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <span className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-medium">
+                  📱 Menú Digital
+                </span>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('clientMode');
+                    navigate('/login');
+                  }}
+                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                >
+                  Salir
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Contenido */}
+        <main className="p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
+
+        {/* Footer simple */}
+        <footer className="mt-12 py-6 bg-white border-t border-gray-200">
+          <div className="text-center text-sm text-gray-600">
+            <p>© 2024 Pollería El Sabor - Sistema de Pedidos</p>
+            <p className="mt-1">📍 Av. Principal 123 | 📞 (01) 555-0100</p>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // Vista completa para empleados
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

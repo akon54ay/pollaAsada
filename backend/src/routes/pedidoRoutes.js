@@ -46,6 +46,12 @@ router.patch('/:id/estado',
   pedidoController.updateEstadoPedido
 );
 
+// Actualizar solo observaciones - admin y caja
+router.patch('/:id', 
+  checkRole('admin', 'caja'),
+  pedidoController.updatePedido
+);
+
 // Cancelar pedido - admin y caja
 router.post('/:id/cancelar', 
   checkRole('admin', 'caja'), 

@@ -14,9 +14,10 @@ const Login = () => {
   });
 
   // Si ya está autenticado, redirigir
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  // COMENTADO TEMPORALMENTE PARA DEBUGGEAR
+  // if (isAuthenticated) {
+  //   return <Navigate to="/" replace />;
+  // }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,23 +49,27 @@ const Login = () => {
     setLoading(false);
   };
 
-  const handleQuickLogin = async (username, password) => {
+  const handleQuickLogin = async (username, password, customRoute = null) => {
     setLoading(true);
     const result = await login(username, password);
     
     if (result.success) {
-      switch (result.user.role) {
-        case 'caja':
-          navigate('/caja');
-          break;
-        case 'cocina':
-          navigate('/cocina');
-          break;
-        case 'mozo':
-          navigate('/mozo');
-          break;
-        default:
-          navigate('/');
+      if (customRoute) {
+        navigate(customRoute);
+      } else {
+        switch (result.user.role) {
+          case 'caja':
+            navigate('/caja');
+            break;
+          case 'cocina':
+            navigate('/cocina');
+            break;
+          case 'mozo':
+            navigate('/mozo');
+            break;
+          default:
+            navigate('/');
+        }
       }
     }
     setLoading(false);
@@ -139,10 +144,45 @@ const Login = () => {
             </button>
           </form>
 
+          {/* Botón de emergencia para limpiar localStorage */}
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                toast.success('Storage limpiado. Puedes iniciar sesión ahora.');
+                window.location.reload();
+              }}
+              className="w-full px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors border border-red-300"
+            >
+              🔧 Limpiar Storage (Fix de Emergencia)
+            </button>
+          </div>
+
           {/* Accesos rápidos para desarrollo */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-600 text-center mb-4">Acceso rápido (desarrollo)</p>
-            <div className="grid grid-cols-2 gap-2">
+            
+            {/* Acceso Cliente Destacado */}
+            <div className="mb-3">
+              <button
+                onClick={() => {
+                  // Acceso directo sin autenticación para cliente
+                  localStorage.setItem('clientMode', 'true');
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                  window.location.href = '/';  // Usar window.location para forzar recarga
+                }}
+                disabled={loading}
+                className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-colors font-semibold flex items-center justify-center space-x-2"
+              >
+                <span>🍗</span>
+                <span>Acceso Cliente - Ver Menú</span>
+              </button>
+            </div>
+            
+            {/* Accesos principales */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <button
                 onClick={() => handleQuickLogin('admin', 'admin123')}
                 disabled={loading}

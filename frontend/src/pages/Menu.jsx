@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { menuService } from '../services/api';
-import useCartStore from '../stores/useCartStore';
-import { ShoppingCart, Plus, Minus, X } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import usePedidosStore from '../stores/usePedidosStore';
 import LoadingSpinner from '../components/LoadingSpinner';
+import MesaSelector from '../components/MesaSelector';
+import useAutoRefresh from '../hooks/useAutoRefresh';
+import { 
+  ShoppingCart, 
+  Plus, 
+  Minus, 
+  X, 
+  Clock, 
+  RefreshCw,
+  Send
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Menu = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [cartOpen, setCartOpen] = useState(false);
+  const [sendingOrder, setSendingOrder] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   
+  const { user } = useAuth();
+  const { createPedidoFromMenu } = usePedidosStore();
   const { 
     items: cartItems, 
     addItem, 
@@ -18,8 +34,13 @@ const Menu = () => {
     updateQuantity,
     getTotal,
     getTotalItems,
-    clearCart 
-  } = useCartStore();
+    clearCart,
+    getPedidoData,
+    mesa,
+    clienteNombre,
+    tipoPedido,
+    updateOrderData
+  } = useCart();
 
   const categories = [
     { value: 'todos', label: 'Todos', emoji: '🍽️' },
@@ -34,23 +55,83 @@ const Menu = () => {
     fetchMenuItems();
   }, [selectedCategory]);
 
+  // Auto-actualización del menú cada 10 segundos
+  useAutoRefresh(() => {
+    if (autoRefresh) {
+      fetchMenuItems();
+    }
+  }, 10000, [selectedCategory]);
+
   const fetchMenuItems = async () => {
     try {
-      setLoading(true);
-      const params = selectedCategory !== 'todos' ? { categoria: selectedCategory } : {};
-      const response = await menuService.getItems({ ...params, disponible: true });
-      setMenuItems(response.data);
+      if (!loading) { // Solo mostrar loading en la carga inicial
+        const params = selectedCategory !== 'todos' ? { categoria: selectedCategory } : {};
+        const response = await menuService.getItems({ ...params, disponible: true });
+        setMenuItems(response.data);
+      } else {
+        setLoading(true);
+        const params = selectedCategory !== 'todos' ? { categoria: selectedCategory } : {};
+        const response = await menuService.getItems({ ...params, disponible: true });
+        setMenuItems(response.data);
+        setLoading(false);
+      }
     } catch (error) {
       console.error('Error al cargar menú:', error);
-      toast.error('Error al cargar el menú');
+      if (loading) {
+        toast.error('Error al cargar el menú');
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleSendToKitchen = async () => {
+    if (cartItems.length === 0) {
+      toast.error('El carrito está vacío');
+      return;
+    }
+
+    if (!mesa && tipoPedido === 'local') {
+      toast.error('Por favor indica el número de mesa');
+      return;
+    }
+
+    // Solo validar nombre si no es cliente
+    const isClientMode = localStorage.getItem('clientMode') === 'true';
+    if (!isClientMode && !clienteNombre) {
+      toast.error('Por favor indica el nombre del cliente');
+      return;
+    }
+
+    try {
+      setSendingOrder(true);
+      const pedidoData = getPedidoData();
+      
+      // Enviar el pedido a caja (todos los usuarios)
+      await createPedidoFromMenu(pedidoData);
+      
+      // Mensaje según el rol del usuario
+      if (!user || user.role === 'cliente' || user.role === 'mozo') {
+        toast.success('✅ Pedido enviado a caja para procesar el pago');
+      } else if (user.role === 'caja' || user.role === 'admin') {
+        toast.success('✅ Pedido creado - Ve a la sección de Caja para procesarlo');
+      }
+      
+      clearCart();
+      setCartOpen(false);
+    } catch (error) {
+      console.error('Error al enviar pedido:', error);
+      toast.error('Error al enviar el pedido');
     } finally {
-      setLoading(false);
+      setSendingOrder(false);
     }
   };
 
   const handleAddToCart = (item) => {
     addItem(item);
-    toast.success(`${item.nombre} agregado al carrito`);
+    toast.success(`${item.nombre} agregado al carrito`, {
+      duration: 1500, // 1.5 segundos
+      position: 'bottom-center' // Cambiar posición para no tapar el botón
+    });
   };
 
   const getItemQuantity = (itemId) => {
@@ -78,19 +159,35 @@ const Menu = () => {
           <p className="text-gray-600 mt-1">Selecciona los productos para tu pedido</p>
         </div>
         
-        {/* Botón del carrito */}
-        <button
-          onClick={() => setCartOpen(true)}
-          className="relative btn-primary flex items-center space-x-2"
-        >
-          <ShoppingCart className="h-5 w-5" />
-          <span>Ver Carrito</span>
-          {getTotalItems() > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
-              {getTotalItems()}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center space-x-3">
+          {/* Toggle auto-refresh */}
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+              autoRefresh 
+                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title={autoRefresh ? 'Auto-actualización activa' : 'Auto-actualización pausada'}
+          >
+            <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin-slow' : ''}`} />
+            <span className="text-sm">{autoRefresh ? 'Auto' : 'Manual'}</span>
+          </button>
+          
+          {/* Botón del carrito */}
+          <button
+            onClick={() => setCartOpen(true)}
+            className="relative btn-primary flex items-center space-x-2"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            <span>Ver Carrito</span>
+            {getTotalItems() > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
+                {getTotalItems()}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Filtros de categoría */}
@@ -120,7 +217,16 @@ const Menu = () => {
             const quantity = getItemQuantity(item.id);
             
             return (
-              <div key={item.id} className="card hover:shadow-lg transition-shadow">
+              <div 
+                key={item.id} 
+                className={`card hover:shadow-lg transition-shadow ${quantity === 0 ? 'cursor-pointer' : ''}`}
+                onClick={() => {
+                  // Solo agregar si no hay cantidad y se hace click fuera de los botones
+                  if (quantity === 0 && !event.target.closest('button')) {
+                    handleAddToCart(item);
+                  }
+                }}
+              >
                 <img
                   src={item.imagen_url || getDefaultImage(item.categoria)}
                   alt={item.nombre}
@@ -153,8 +259,11 @@ const Menu = () => {
                 
                 {quantity === 0 ? (
                   <button
-                    onClick={() => handleAddToCart(item)}
-                    className="w-full btn-primary flex items-center justify-center space-x-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart(item);
+                    }}
+                    className="w-full btn-primary flex items-center justify-center space-x-2 hover:scale-105 transition-transform"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Agregar</span>
@@ -162,14 +271,20 @@ const Menu = () => {
                 ) : (
                   <div className="flex items-center justify-between bg-gray-100 rounded-lg p-2">
                     <button
-                      onClick={() => updateQuantity(item.id, quantity - 1)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateQuantity(item.id, quantity - 1);
+                      }}
                       className="p-1 hover:bg-gray-200 rounded"
                     >
                       <Minus className="h-4 w-4" />
                     </button>
                     <span className="font-semibold">{quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.id, quantity + 1)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateQuantity(item.id, quantity + 1);
+                      }}
                       className="p-1 hover:bg-gray-200 rounded"
                     >
                       <Plus className="h-4 w-4" />
@@ -253,6 +368,70 @@ const Menu = () => {
                     ))}
                   </div>
                   
+                  {/* Datos del pedido */}
+                  <div className="border-t pt-4 mb-4">
+                    <h3 className="font-semibold mb-3">Datos del Pedido</h3>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tipo de Pedido
+                        </label>
+                        <select
+                          value={tipoPedido}
+                          onChange={(e) => updateOrderData({ tipoPedido: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="local">Para Mesa</option>
+                          <option value="llevar">Para Llevar</option>
+                          <option value="delivery">Delivery</option>
+                        </select>
+                      </div>
+                      
+                      {tipoPedido === 'local' && (
+                        <div>
+                          {/* Mostrar selector de mesa solo para clientes */}
+                          {localStorage.getItem('clientMode') === 'true' ? (
+                            <MesaSelector
+                              selectedMesa={mesa}
+                              onSelectMesa={(mesaNum) => updateOrderData({ mesa: mesaNum })}
+                              isClientMode={true}
+                            />
+                          ) : (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Número de Mesa
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej: Mesa 5"
+                                value={mesa}
+                                onChange={(e) => updateOrderData({ mesa: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Solo mostrar campo de nombre si NO es cliente */}
+                      {localStorage.getItem('clientMode') !== 'true' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre del Cliente
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ingrese el nombre"
+                            value={clienteNombre}
+                            onChange={(e) => updateOrderData({ clienteNombre: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-xl font-bold">Total:</span>
@@ -269,14 +448,25 @@ const Menu = () => {
                     </button>
                     
                     <button
-                      onClick={() => {
-                        setCartOpen(false);
-                        toast.info('Ve a la sección de Caja para procesar el pedido');
-                      }}
-                      className="w-full btn-primary"
+                      onClick={handleSendToKitchen}
+                      disabled={sendingOrder}
+                      className="w-full btn-primary flex items-center justify-center space-x-2"
                     >
-                      Procesar Pedido
+                      {sendingOrder ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        <>
+                          <Send className="h-5 w-5" />
+                          <span>Enviar a Caja</span>
+                        </>
+                      )}
                     </button>
+                    
+                    {user && (user.role === 'caja' || user.role === 'admin') && (
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        Como cajero, el pedido se procesará directamente
+                      </p>
+                    )}
                   </div>
                 </>
               )}

@@ -291,6 +291,39 @@ const updateEstadoPedido = async (req, res, next) => {
   }
 };
 
+// Actualizar pedido (solo observaciones u otros campos)
+const updatePedido = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { observaciones } = req.body;
+    
+    // Buscar pedido
+    const pedido = await Pedido.findByPk(id);
+    
+    if (!pedido) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido no encontrado'
+      });
+    }
+    
+    // Actualizar solo las observaciones
+    if (observaciones !== undefined) {
+      pedido.observaciones = observaciones;
+    }
+    
+    await pedido.save();
+    
+    res.json({
+      success: true,
+      message: 'Pedido actualizado exitosamente',
+      data: pedido
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Cancelar pedido
 const cancelarPedido = async (req, res, next) => {
   try {
@@ -311,5 +344,6 @@ module.exports = {
   getPedido,
   createPedido,
   updateEstadoPedido,
+  updatePedido,
   cancelarPedido
 };

@@ -44,14 +44,24 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // No mostrar toast para ciertos endpoints que manejan sus propios errores
+    const skipToastUrls = ['/caja/pago', '/pedidos'];
+    const shouldSkipToast = skipToastUrls.some(url => 
+      error.config?.url?.includes(url)
+    );
+
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
-      toast.error('Sesión expirada. Por favor inicia sesión nuevamente.');
-    } else if (error.response?.data?.message) {
+      // No redirigir si está en modo cliente
+      if (localStorage.getItem('clientMode') !== 'true') {
+        window.location.href = '/login';
+        toast.error('Sesión expirada. Por favor inicia sesión nuevamente.');
+      }
+    } else if (error.response?.data?.message && !shouldSkipToast) {
+      // Solo mostrar toast si no es un endpoint que maneja sus propios errores
       toast.error(error.response.data.message);
-    } else {
+    } else if (!error.response && !shouldSkipToast) {
       toast.error('Error de conexión con el servidor');
     }
     return Promise.reject(error);
@@ -129,18 +139,18 @@ export const menuService = {
 
 // Servicios de pedidos
 export const pedidoService = {
+  createPedido: async (data) => {
+    const response = await api.post('/pedidos', data);
+    return response.data;
+  },
+  
   getPedidos: async (params = {}) => {
     const response = await api.get('/pedidos', { params });
     return response.data;
   },
   
-  getPedido: async (id) => {
+  getPedidoById: async (id) => {
     const response = await api.get(`/pedidos/${id}`);
-    return response.data;
-  },
-  
-  createPedido: async (data) => {
-    const response = await api.post('/pedidos', data);
     return response.data;
   },
   
@@ -152,8 +162,17 @@ export const pedidoService = {
     return response.data;
   },
   
-  cancelarPedido: async (id, motivo = '') => {
-    const response = await api.post(`/pedidos/${id}/cancelar`, { motivo });
+  updateObservaciones: async (id, observaciones) => {
+    const response = await api.patch(`/pedidos/${id}`, {
+      observaciones
+    });
+    return response.data;
+  },
+  
+  cancelarPedido: async (id, motivo) => {
+    const response = await api.delete(`/pedidos/${id}`, {
+      data: { motivo }
+    });
     return response.data;
   }
 };
@@ -162,6 +181,15 @@ export const pedidoService = {
 export const cajaService = {
   registrarPago: async (data) => {
     const response = await api.post('/caja/pago', data);
+    return response.data;
+  },
+  
+  procesarPago: async (pedidoId, data) => {
+    // Usar registrarPago para procesar el pago del pedido
+    const response = await api.post('/caja/pago', {
+      pedido_id: pedidoId,
+      ...data
+    });
     return response.data;
   },
   

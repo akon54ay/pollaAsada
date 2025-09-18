@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 
@@ -16,36 +17,26 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
+        <CartProvider>
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
               style: {
-                background: '#10b981',
+                background: '#363636',
+                color: '#fff',
               },
-              iconTheme: {
-                primary: '#fff',
-                secondary: '#10b981',
+              success: {
+                duration: 3000,
+                theme: {
+                  primary: '#4ade80',
+                  secondary: 'black',
+                },
               },
-            },
-            error: {
-              style: {
-                background: '#ef4444',
-              },
-              iconTheme: {
-                primary: '#fff',
-                secondary: '#ef4444',
-              },
-            },
-          }}
-        />
-        
-        <Routes>
+            }}
+          />
+          
+          <Routes>
           {/* Ruta pública */}
           <Route path="/login" element={<Login />} />
           
@@ -97,6 +88,7 @@ function App() {
           {/* Redirigir cualquier ruta no encontrada al login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </CartProvider>
       </AuthProvider>
     </Router>
   );
