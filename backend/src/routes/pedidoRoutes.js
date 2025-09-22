@@ -26,7 +26,14 @@ const validateEstadoUpdate = [
     .withMessage('Estado inválido')
 ];
 
-// Todas las rutas requieren autenticación
+// RUTAS PÚBLICAS (sin autenticación) - Para clientes
+// Crear pedido público - clientes sin login
+router.post('/publico', 
+  validatePedido, 
+  pedidoController.createPedidoPublico
+);
+
+// RUTAS PROTEGIDAS (requieren autenticación)
 router.use(verifyToken);
 
 // Obtener pedidos - todos los roles pueden ver

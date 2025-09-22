@@ -140,7 +140,9 @@ export const menuService = {
 // Servicios de pedidos
 export const pedidoService = {
   createPedido: async (data) => {
-    const response = await api.post('/pedidos', data);
+    const token = localStorage.getItem('token');
+    const endpoint = token ? '/pedidos' : '/pedidos/publico';
+    const response = await api.post(endpoint, data);
     return response.data;
   },
   

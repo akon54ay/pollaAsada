@@ -24,8 +24,11 @@ const MesaSelector = ({ selectedMesa, onSelectMesa, isClientMode = false }) => {
   ];
 
   useEffect(() => {
-    fetchMesasOcupadas();
-  }, []);
+    // Solo obtener mesas ocupadas si no es modo cliente
+    if (!isClientMode) {
+      fetchMesasOcupadas();
+    }
+  }, [isClientMode]);
 
   const fetchMesasOcupadas = async () => {
     try {

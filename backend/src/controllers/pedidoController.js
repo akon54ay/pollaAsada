@@ -107,6 +107,120 @@ const getPedido = async (req, res, next) => {
 };
 
 // Crear un nuevo pedido
+// Crear pedido público (para clientes sin autenticación)
+const createPedidoPublico = async (req, res, next) => {
+  const t = await sequelize.transaction();
+  
+  try {
+    const {
+      mesa,
+      cliente_nombre,
+      tipo_pedido,
+      observaciones,
+      detalles
+    } = req.body;
+    
+    // Validar que haya detalles
+    if (!detalles || detalles.length === 0) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'El pedido debe tener al menos un producto'
+      });
+    }
+    
+    // Calcular total
+    let total = 0;
+    const detallesConPrecio = [];
+    
+    for (const detalle of detalles) {
+      const menu = await Menu.findByPk(detalle.menu_id, { transaction: t });
+      
+      if (!menu) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          message: `Producto con ID ${detalle.menu_id} no encontrado`
+        });
+      }
+      
+      if (!menu.disponible) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          message: `El producto "${menu.nombre}" no está disponible`
+        });
+      }
+      
+      const subtotal = menu.precio * detalle.cantidad;
+      total += subtotal;
+      
+      detallesConPrecio.push({
+        menu_id: detalle.menu_id,
+        cantidad: detalle.cantidad,
+        precio_unitario: menu.precio,
+        subtotal,
+        observaciones: detalle.observaciones
+      });
+    }
+    
+    // Crear pedido (sin usuario_id para clientes públicos)
+    const pedido = await Pedido.create({
+      mesa,
+      cliente_nombre: cliente_nombre || 'Cliente',
+      tipo_pedido: tipo_pedido || 'local',
+      estado: 'pendiente',
+      total,
+      observaciones,
+      usuario_id: null // Sin usuario para pedidos públicos
+    }, { transaction: t });
+    
+    // Crear detalles del pedido
+    for (const detalle of detallesConPrecio) {
+      await DetallePedido.create({
+        pedido_id: pedido.id,
+        ...detalle
+      }, { transaction: t });
+    }
+    
+    // Crear registro en historial (sin usuario_id)
+    await HistorialPedido.create({
+      pedido_id: pedido.id,
+      estado_anterior: null,
+      estado_nuevo: 'pendiente',
+      usuario_id: null, // Sin usuario para pedidos públicos
+      observacion: 'Pedido creado por cliente'
+    }, { transaction: t });
+    
+    await t.commit();
+    
+    // Obtener pedido completo
+    const pedidoCompleto = await Pedido.findByPk(pedido.id, {
+      include: [
+        {
+          model: DetallePedido,
+          as: 'detalles',
+          include: [{
+            model: Menu,
+            as: 'menu',
+            attributes: ['nombre', 'precio', 'categoria']
+          }]
+        }
+      ]
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Pedido creado exitosamente',
+      data: pedidoCompleto
+    });
+  } catch (error) {
+    await t.rollback();
+    next(error);
+  }
+};
+
+// Crear pedido (para empleados autenticados)
 const createPedido = async (req, res, next) => {
   const t = await sequelize.transaction();
   
@@ -343,6 +457,7 @@ module.exports = {
   getPedidos,
   getPedido,
   createPedido,
+  createPedidoPublico,
   updateEstadoPedido,
   updatePedido,
   cancelarPedido

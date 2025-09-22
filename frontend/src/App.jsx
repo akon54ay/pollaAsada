@@ -37,12 +37,22 @@ function App() {
           />
           
           <Routes>
+          {/* Ruta pública del menú para clientes */}
+          <Route 
+            path="/" 
+            element={
+              <Layout>
+                <Menu />
+              </Layout>
+            } 
+          />
+          
           {/* Ruta pública */}
           <Route path="/login" element={<Login />} />
           
           {/* Rutas protegidas */}
           <Route
-            path="/"
+            path="/empleado"
             element={
               <PrivateRoute allowedRoles={['admin', 'caja', 'mozo']}>
                 <Layout>
