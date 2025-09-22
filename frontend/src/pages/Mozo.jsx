@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { mozoService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { 
   Users, 
@@ -11,7 +12,9 @@ import {
   TrendingUp,
   Coffee,
   AlertCircle,
-  Bell
+  Bell,
+  UserCheck,
+  XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -19,6 +22,7 @@ import { format, differenceInMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const Mozo = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('listos');
   const [pedidosListos, setPedidosListos] = useState([]);
   const [mesasActivas, setMesasActivas] = useState([]);
@@ -29,6 +33,11 @@ const Mozo = () => {
   const [pedidosMesa, setPedidosMesa] = useState([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastPedidosListosCount, setLastPedidosListosCount] = useState(0);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [notificacionesNoLeidas, setNotificacionesNoLeidas] = useState(0);
+  const [showNotificaciones, setShowNotificaciones] = useState(false);
+  const [mozosDisponibles, setMozosDisponibles] = useState([]);
+  const [mesaParaLiberar, setMesaParaLiberar] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -43,11 +52,20 @@ const Mozo = () => {
 
   const fetchData = async () => {
     try {
-      const [pedidosRes, mesasRes, statsRes] = await Promise.all([
+      const promises = [
         mozoService.getPedidosListos(),
         mozoService.getMesasActivas(),
         mozoService.getEstadisticas()
-      ]);
+      ];
+      
+      // Si el usuario está autenticado, también obtener notificaciones
+      if (user) {
+        promises.push(mozoService.getNotificaciones());
+        promises.push(mozoService.getMozosDisponibles());
+      }
+      
+      const results = await Promise.all(promises);
+      const [pedidosRes, mesasRes, statsRes, notifRes, mozosRes] = results;
       
       // Verificar si hay nuevos pedidos listos
       const nuevosPedidosListos = pedidosRes.data || [];
@@ -66,6 +84,27 @@ const Mozo = () => {
       setPedidosListos(nuevosPedidosListos);
       setMesasActivas(mesasRes.data);
       setEstadisticas(statsRes.data);
+      
+      if (notifRes) {
+        setNotificaciones(notifRes.data || []);
+        const noLeidas = (notifRes.data || []).filter(n => !n.leida).length;
+        setNotificacionesNoLeidas(noLeidas);
+        
+        // Notificar si hay nuevas notificaciones de mesa liberada
+        const mesasLiberadas = (notifRes.data || []).filter(
+          n => n.tipo === 'mesa_liberada' && !n.leida
+        );
+        if (mesasLiberadas.length > 0) {
+          toast.success(
+            `🪑 ${mesasLiberadas.length} mesa${mesasLiberadas.length > 1 ? 's' : ''} liberada${mesasLiberadas.length > 1 ? 's' : ''}`,
+            { duration: 5000 }
+          );
+        }
+      }
+      
+      if (mozosRes) {
+        setMozosDisponibles(mozosRes.data || []);
+      }
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
@@ -84,6 +123,49 @@ const Mozo = () => {
       toast.error('Error al marcar como entregado');
     } finally {
       setProcesando(null);
+    }
+  };
+  
+  const handleLiberarMesa = async (mesa) => {
+    try {
+      setLoading(true);
+      await mozoService.liberarMesa(mesa);
+      
+      // Mostrar notificación de éxito
+      toast.success(
+        <div>
+          <strong>✅ Mesa {mesa} desocupada</strong>
+          <br />
+          <small>La mesa ya está disponible para nuevos clientes</small>
+        </div>,
+        { duration: 4000 }
+      );
+      
+      // Limpiar estado y refrescar datos
+      setMesaParaLiberar(null);
+      
+      // Esperar un momento antes de refrescar para que el backend procese
+      setTimeout(() => {
+        fetchData();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al desocupar la mesa');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleMarcarNotificacionLeida = async (notifId) => {
+    try {
+      await mozoService.marcarNotificacionLeida(notifId);
+      setNotificaciones(prev => 
+        prev.map(n => n.id === notifId ? { ...n, leida: true } : n)
+      );
+      setNotificacionesNoLeidas(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error:', error);
     }
   };
 
@@ -212,6 +294,64 @@ const Mozo = () => {
           </div>
         )}
       </div>
+
+      {/* Botón de Notificaciones */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setShowNotificaciones(!showNotificaciones)}
+          className="relative flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          <Bell className="h-5 w-5" />
+          <span>Notificaciones</span>
+          {notificacionesNoLeidas > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
+              {notificacionesNoLeidas}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Panel de Notificaciones */}
+      {showNotificaciones && (
+        <div className="card mb-6 max-h-64 overflow-y-auto">
+          <h3 className="font-semibold mb-3">Notificaciones Recientes</h3>
+          {notificaciones.length > 0 ? (
+            <div className="space-y-2">
+              {notificaciones.slice(0, 10).map((notif) => (
+                <div
+                  key={notif.id}
+                  className={`p-3 rounded-lg border ${
+                    notif.leida ? 'bg-gray-50 border-gray-200' : 'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{notif.titulo}</p>
+                      <p className="text-sm text-gray-600 mt-1">{notif.mensaje}</p>
+                      {notif.mesa_numero && (
+                        <span className="inline-block mt-2 px-2 py-1 bg-white rounded text-xs">
+                          Mesa {notif.mesa_numero}
+                        </span>
+                      )}
+                    </div>
+                    {!notif.leida && (
+                      <button
+                        onClick={() => handleMarcarNotificacionLeida(notif.id)}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                        title="Marcar como leída"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4">No hay notificaciones</p>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
@@ -369,14 +509,35 @@ const Mozo = () => {
                     <span className="font-medium">{mesa.tiempo_ocupacion_minutos} min</span>
                   </div>
                   
-                  {mesa.total_pendiente_pago > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Pendiente pago:</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Estado de pago:</span>
+                    {mesa.total_pendiente_pago > 0 ? (
                       <span className="font-medium text-red-600">
-                        S/. {mesa.total_pendiente_pago.toFixed(2)}
+                        S/. {mesa.total_pendiente_pago.toFixed(2)} pendiente
                       </span>
+                    ) : (
+                      <span className="font-medium text-green-600">
+                        ✓ Todo pagado
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Indicador visual del estado de la mesa */}
+                  <div className="pt-2 border-t">
+                    <div className={`text-xs text-center py-1 px-2 rounded ${
+                      mesa.estados.includes('pendiente') || mesa.estados.includes('preparando') 
+                        ? 'bg-yellow-100 text-yellow-800' 
+                        : mesa.total_pendiente_pago > 0 
+                          ? 'bg-orange-100 text-orange-800'
+                          : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {mesa.estados.includes('pendiente') || mesa.estados.includes('preparando') 
+                        ? '🍳 Pedidos en preparación' 
+                        : mesa.total_pendiente_pago > 0 
+                          ? '💳 Esperando pago'
+                          : '☕ Cliente consumiendo'}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-3">
@@ -390,12 +551,28 @@ const Mozo = () => {
                   ))}
                 </div>
 
-                <button
-                  onClick={() => handleVerPedidosMesa(mesa.mesa)}
-                  className="w-full btn-outline py-2 text-sm"
-                >
-                  Ver Pedidos
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleVerPedidosMesa(mesa.mesa)}
+                    className="flex-1 btn-outline py-2 text-sm"
+                  >
+                    Ver Pedidos
+                  </button>
+                  
+                  {/* Botón para desocupar mesa - siempre visible para el mozo */}
+                  <button
+                    onClick={() => setMesaParaLiberar(mesa.mesa)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center space-x-1 ${
+                      mesa.total_pendiente_pago > 0 
+                        ? 'bg-orange-600 text-white hover:bg-orange-700' 
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                    title={mesa.total_pendiente_pago > 0 ? "Mesa con pagos pendientes" : "Mesa lista para desocupar"}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    <span>Desocupar</span>
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -478,6 +655,79 @@ const Mozo = () => {
                     className="btn-primary"
                   >
                     Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      
+      {/* Modal de confirmación para desocupar mesa */}
+      {mesaParaLiberar && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setMesaParaLiberar(null)}
+          />
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white rounded-lg max-w-md w-full p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                    <XCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Desocupar Mesa {mesaParaLiberar}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      ¿El cliente ya se retiró de la mesa?
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Verificar si hay pagos pendientes */}
+                {(() => {
+                  const mesaInfo = mesasActivas.find(m => m.mesa === mesaParaLiberar);
+                  const hayPagosPendientes = mesaInfo && mesaInfo.total_pendiente_pago > 0;
+                  
+                  if (hayPagosPendientes) {
+                    return (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-red-800">
+                          <strong>⚠️ Atención:</strong> Esta mesa tiene S/. {mesaInfo.total_pendiente_pago.toFixed(2)} 
+                          pendientes de pago. Asegúrate de cobrar antes de desocupar.
+                        </p>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-green-800">
+                          <strong>✅ Mesa lista:</strong> Todos los pedidos han sido pagados. 
+                          La mesa puede ser desocupada.
+                        </p>
+                      </div>
+                    );
+                  }
+                })()}
+                
+                <div className="mt-5 sm:mt-6 flex gap-3">
+                  <button
+                    onClick={() => setMesaParaLiberar(null)}
+                    className="flex-1 btn-outline"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleLiberarMesa(mesaParaLiberar);
+                      setMesaParaLiberar(null);
+                    }}
+                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Sí, Desocupar Mesa
                   </button>
                 </div>
               </div>

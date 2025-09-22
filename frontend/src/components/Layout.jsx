@@ -81,23 +81,23 @@ const Layout = ({ children }) => {
 
   if (isClientView) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+      <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #FFF8DC 0%, #FFEFD5 50%, #FFE4B5 100%)' }}>
         {/* Header simplificado para clientes */}
-        <header className="bg-white shadow-lg border-b-2 border-orange-200">
+        <header className="header-polleria">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-20">
               <div className="flex items-center space-x-4">
-                <div className="text-3xl">🍗</div>
+                <div className="text-4xl animate-flame">🔥</div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Pollería El Sabor
+                  <h1 className="brand-title text-3xl text-yellow-400">
+                    Los Pollos Hermanos
                   </h1>
-                  <p className="text-sm text-gray-600">¡Ordena ahora y disfruta!</p>
+                  <p className="text-sm text-orange-200">🍗 ¡El mejor pollo a la brasa! 🍗</p>
                 </div>
               </div>
               
               <div className="flex items-center space-x-4">
-                <span className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-medium">
+                <span className="badge-fuego">
                   📱 Menú Digital
                 </span>
                 <button
@@ -120,10 +120,11 @@ const Layout = ({ children }) => {
         </main>
 
         {/* Footer simple */}
-        <footer className="mt-12 py-6 bg-white border-t border-gray-200">
-          <div className="text-center text-sm text-gray-600">
-            <p>© 2024 Pollería El Sabor - Sistema de Pedidos</p>
-            <p className="mt-1">📍 Av. Principal 123 | 📞 (01) 555-0100</p>
+        <footer className="mt-12 py-6 grill-effect border-t-4" style={{ borderColor: 'var(--color-dorado)' }}>
+          <div className="text-center">
+            <p className="text-lg font-bold" style={{ color: 'var(--color-marron)' }}>🔥 Los Pollos Hermanos 🔥</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--color-fuego)' }}>© 2024 - El auténtico sabor a la brasa</p>
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-marron)' }}>📍 Av. Principal 123 | 📞 (01) 555-0100 | 🕐 10:00 AM - 10:00 PM</p>
           </div>
         </footer>
       </div>
@@ -132,9 +133,9 @@ const Layout = ({ children }) => {
 
   // Vista completa para empleados
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #FFF8DC 0%, #FFEFD5 50%, #FFE4B5 100%)' }}>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="header-polleria">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -144,15 +145,15 @@ const Layout = ({ children }) => {
               >
                 <MenuIcon className="h-6 w-6" />
               </button>
-              <h1 className="ml-4 text-xl font-bold text-gray-900">
-                🍗 Pollería Sistema
+              <h1 className="ml-4 brand-title text-2xl text-yellow-400">
+                🔥 Los Pollos Hermanos 🔥
               </h1>
             </div>
             
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">
+                <User className="h-5 w-5 text-yellow-400" />
+                <span className="text-sm font-medium text-yellow-200">
                   {user?.username}
                 </span>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(user?.role)}`}>
@@ -161,8 +162,7 @@ const Layout = ({ children }) => {
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
+                className="flex items-center space-x-2 text-yellow-200 hover:text-white transition-colors bg-red-700 hover:bg-red-800 px-3 py-1 rounded-lg">
                 <LogOut className="h-5 w-5" />
                 <span className="hidden sm:inline">Salir</span>
               </button>
@@ -175,7 +175,7 @@ const Layout = ({ children }) => {
         {/* Sidebar */}
         <aside className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out lg:shadow-none border-r border-gray-200`}>
+        } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 shadow-lg transition-transform duration-300 ease-in-out lg:shadow-none`} style={{ background: 'linear-gradient(to bottom, #FFF8DC, #FFE4B5)', borderRight: '3px solid var(--color-dorado)' }}>
           <nav className="h-full overflow-y-auto p-4">
             <ul className="space-y-2">
               {filteredMenuItems.map((item) => {
@@ -187,11 +187,12 @@ const Layout = ({ children }) => {
                     <Link
                       to={item.path}
                       onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                         isActive
-                          ? 'bg-primary-50 text-primary-700 font-medium'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? 'badge-fuego transform scale-105'
+                          : 'hover:bg-orange-100'
                       }`}
+                      style={{ color: isActive ? 'white' : 'var(--color-marron)' }}
                     >
                       <Icon className="h-5 w-5" />
                       <span>{item.label}</span>

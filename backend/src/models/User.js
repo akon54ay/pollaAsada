@@ -11,12 +11,12 @@ const User = sequelize.define('User', {
   username: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    unique: true
+    unique: false  // Temporalmente false para evitar el error de índices
   },
   email: {
     type: DataTypes.STRING(100),
     allowNull: false,
-    unique: true,
+    unique: false,  // Temporalmente false para evitar el error de índices
     validate: {
       isEmail: true
     }

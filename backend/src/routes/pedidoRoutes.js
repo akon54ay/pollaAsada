@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const pedidoController = require('../controllers/pedidoController');
-const { verifyToken, checkRole } = require('../middlewares/auth');
+const { verifyToken, checkRole, optionalAuth } = require('../middlewares/auth');
 
 // Validaciones
 const validatePedido = [
@@ -26,34 +26,36 @@ const validateEstadoUpdate = [
     .withMessage('Estado inválido')
 ];
 
-// Todas las rutas requieren autenticación
-router.use(verifyToken);
-
-// Obtener pedidos - todos los roles pueden ver
-router.get('/', pedidoController.getPedidos);
-router.get('/:id', pedidoController.getPedido);
-
-// Crear pedido - caja, mozo y admin
+// Rutas públicas (pueden ser usadas sin autenticación)
+// Crear pedido - público para clientes, pero con autenticación opcional
 router.post('/', 
-  checkRole('admin', 'caja', 'mozo'), 
+  optionalAuth,  // Autenticación opcional
   validatePedido, 
   pedidoController.createPedido
 );
 
+// Rutas protegidas - requieren autenticación
+// Obtener pedidos - requiere autenticación
+router.get('/', verifyToken, pedidoController.getPedidos);
+router.get('/:id', verifyToken, pedidoController.getPedido);
+
 // Actualizar estado - según el rol
 router.patch('/:id/estado', 
+  verifyToken,
   validateEstadoUpdate, 
   pedidoController.updateEstadoPedido
 );
 
 // Actualizar solo observaciones - admin y caja
 router.patch('/:id', 
+  verifyToken,
   checkRole('admin', 'caja'),
   pedidoController.updatePedido
 );
 
 // Cancelar pedido - admin y caja
 router.post('/:id/cancelar', 
+  verifyToken,
   checkRole('admin', 'caja'), 
   pedidoController.cancelarPedido
 );

@@ -5,6 +5,8 @@ const Pedido = require('./Pedido');
 const DetallePedido = require('./DetallePedido');
 const Pago = require('./Pago');
 const HistorialPedido = require('./HistorialPedido');
+const AsignacionMesa = require('./AsignacionMesa');
+const NotificacionMozo = require('./NotificacionMozo');
 
 // Definir relaciones
 
@@ -36,6 +38,18 @@ HistorialPedido.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
 User.hasMany(HistorialPedido, { foreignKey: 'usuario_id', as: 'historiales' });
 HistorialPedido.belongsTo(User, { foreignKey: 'usuario_id', as: 'usuario' });
 
+// Usuario - AsignacionMesa
+User.hasMany(AsignacionMesa, { foreignKey: 'mozo_id', as: 'mesasAsignadas' });
+AsignacionMesa.belongsTo(User, { foreignKey: 'mozo_id', as: 'mozo' });
+
+// Usuario - NotificacionMozo
+User.hasMany(NotificacionMozo, { foreignKey: 'mozo_id', as: 'notificaciones' });
+NotificacionMozo.belongsTo(User, { foreignKey: 'mozo_id', as: 'mozo' });
+
+// Pedido - NotificacionMozo
+Pedido.hasMany(NotificacionMozo, { foreignKey: 'pedido_id', as: 'notificaciones' });
+NotificacionMozo.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
+
 module.exports = {
   sequelize,
   User,
@@ -43,5 +57,7 @@ module.exports = {
   Pedido,
   DetallePedido,
   Pago,
-  HistorialPedido
+  HistorialPedido,
+  AsignacionMesa,
+  NotificacionMozo
 };

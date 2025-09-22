@@ -267,8 +267,48 @@ export const mozoService = {
     return response.data;
   },
   
+  verificarEstadoMesa: async (numeroMesa) => {
+    const response = await api.get(`/mozo/mesa/${numeroMesa}/estado`);
+    return response.data;
+  },
+  
   getEstadisticas: async () => {
     const response = await api.get('/mozo/estadisticas');
+    return response.data;
+  },
+  
+  getNotificaciones: async (noLeidas = false) => {
+    const params = noLeidas ? { no_leidas: 'true' } : {};
+    const response = await api.get('/mozo/notificaciones', { params });
+    return response.data;
+  },
+  
+  marcarNotificacionLeida: async (id) => {
+    const response = await api.patch(`/mozo/notificacion/${id}/leida`);
+    return response.data;
+  },
+  
+  asignarMesa: async (mesa_numero, mozo_id, turno) => {
+    const response = await api.post('/mozo/asignar-mesa', {
+      mesa_numero,
+      mozo_id,
+      turno
+    });
+    return response.data;
+  },
+  
+  liberarMesa: async (mesa_numero) => {
+    const response = await api.post(`/mozo/liberar-mesa/${mesa_numero}`);
+    return response.data;
+  },
+  
+  getMozosDisponibles: async () => {
+    const response = await api.get('/mozo/mozos-disponibles');
+    return response.data;
+  },
+  
+  getEstadisticasTodosMozos: async () => {
+    const response = await api.get('/mozo/estadisticas-todos');
     return response.data;
   }
 };

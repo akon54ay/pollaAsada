@@ -13,8 +13,10 @@ const initializeDatabase = async () => {
     
     // Sincronizar modelos con la base de datos
     // En producción, usar migraciones en lugar de sync
-    await sequelize.sync({ alter: true });
-    console.log('✅ Modelos sincronizados con la base de datos.');
+    // TEMPORALMENTE DESACTIVADO por problema de índices duplicados
+    // await sequelize.sync({ alter: true });
+    await sequelize.sync({ alter: false });  // No alterar la estructura existente
+    console.log('✅ Modelos sincronizados con la base de datos (sin alteraciones).');
     
     // Crear usuario admin por defecto si no existe
     const adminExists = await User.findOne({ where: { username: 'admin' } });

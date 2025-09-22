@@ -171,7 +171,7 @@ const createPedido = async (req, res, next) => {
       estado: 'pendiente',
       total,
       observaciones,
-      usuario_id: req.userId
+      usuario_id: req.userId || null  // Permitir null para pedidos sin autenticación
     }, { transaction: t });
     
     // Crear detalles del pedido
@@ -187,7 +187,7 @@ const createPedido = async (req, res, next) => {
       pedido_id: pedido.id,
       estado_anterior: null,
       estado_nuevo: 'pendiente',
-      usuario_id: req.userId,
+      usuario_id: req.userId || null,  // Permitir null para pedidos sin autenticación
       observacion: 'Pedido creado'
     }, { transaction: t });
     

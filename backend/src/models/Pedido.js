@@ -59,6 +59,11 @@ const Pedido = sequelize.define('Pedido', {
   fecha_entregado: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  mesa_liberada: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
   }
 }, {
   timestamps: true,

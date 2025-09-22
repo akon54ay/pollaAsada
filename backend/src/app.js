@@ -29,6 +29,10 @@ const allowedOriginsList = [
   "http://192.168.56.1:5173", // Cliente remoto (corrección de IP)
   "http://192.168.56.1:5174", // Cliente remoto (puerto alternativo)
   "http://192.168.56.1:5175", // Cliente remoto (puerto alternativo 2)
+  "http://172.27.81.239:5173",
+  "http://172.27.81.239:5174",
+  "http://172.27.81.239:5175",
+
 ];
 
 const corsOptions = {
@@ -37,12 +41,12 @@ const corsOptions = {
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // Si ALLOWED_ORIGINS del .env es *, permitir todos
     if (allowedOrigins === '*') {
       return callback(null, true);
     }
-    
+
     // Verificar si el origin está en la lista de permitidos
     if (allowedOriginsList.includes(origin)) {
       callback(null, true);
